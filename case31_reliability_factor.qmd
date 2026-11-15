@@ -1,0 +1,200 @@
+---
+title: "Case 31 Reliability and Factor Analysis"
+subtitle: "R3 Employee Proficiency and R6 Operational Effectiveness"
+author: "Yujin Jeong"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: false
+execute:
+  warning: false
+  message: false
+---
+
+# Purpose
+
+This report evaluates the reliability and construct validity of the two multi-item scales in Case 31. R3 measures attitudes toward employee proficiency with Q3 through Q6. R6 measures operational effectiveness using the metric items Q31 through Q34. The purpose is to decide whether the items can be combined into composite scales for later analysis.
+
+The analyses include exploratory factor analysis, eigenvalues, factor loadings, communalities, the Kaiser-Meyer-Olkin measure, Bartlett's test of sphericity, and Cronbach's alpha.
+
+# Data Preparation
+
+```{r}
+library(haven)
+library(dplyr)
+library(psych)
+
+case31 <- read_sav("Case 31 Data_efcu_1_cleaned.sav")
+
+r3_items <- case31 |>
+  select(q3, q4, q5, q6) |>
+  mutate(across(everything(), as.numeric))
+
+r6_items <- case31 |>
+  select(q31, q32, q33, q34) |>
+  mutate(across(everything(), as.numeric))
+
+all_items <- bind_cols(r3_items, r6_items)
+
+summary(r3_items)
+summary(r6_items)
+```
+
+The cleaned data contain 128 cases. There were no missing values in the eight items used for these analyses.
+
+# R3 Employee Proficiency
+
+## R3 Factor Analysis
+
+```{r}
+r3_cor <- cor(r3_items, use = "pairwise.complete.obs")
+r3_cor
+
+KMO(r3_cor)
+cortest.bartlett(r3_cor, n = nrow(r3_items))
+
+fa.parallel(
+  r3_items,
+  fa = "fa",
+  fm = "minres",
+  n.iter = 100,
+  plot = FALSE
+)
+
+r3_fa <- fa(
+  r3_items,
+  nfactors = 1,
+  rotate = "none",
+  fm = "minres"
+)
+
+r3_fa$loadings
+r3_fa$communality
+r3_fa$Vaccounted
+```
+
+The R3 items showed a clear one-factor pattern. The first eigenvalue was approximately 2.88 and accounted for about 72% of the standardized variance. The item loadings were positive and generally strong, and the communalities were acceptable. These results support convergent validity because the four items appear to measure the same underlying employee-proficiency attitude.
+
+The KMO value was approximately .78, and Bartlett's test of sphericity was statistically significant. This indicates that the correlation matrix was appropriate for factor analysis.
+
+## R3 Reliability Analysis
+
+```{r}
+r3_alpha <- alpha(r3_items)
+r3_alpha
+
+r3_alpha$total
+r3_alpha$item.stats
+r3_alpha$alpha.drop
+```
+
+Cronbach's alpha for R3 was approximately .87. This indicates good internal consistency among Q3 through Q6. Removing any single item is not expected to improve the scale enough to justify dropping it.
+
+## R3 Decision for a Composite Scale
+
+Because R3 produced one dominant factor, adequate communalities, and good internal consistency, Q3 through Q6 can be combined into an employee-proficiency composite scale. For later analysis, the composite can be calculated as the mean of the four items:
+
+```{r}
+case31$employee_proficiency_composite <- rowMeans(
+  case31[, c("q3", "q4", "q5", "q6")],
+  na.rm = TRUE
+)
+
+summary(case31$employee_proficiency_composite)
+```
+
+# R6 Operational Effectiveness
+
+## R6 Factor Analysis
+
+```{r}
+r6_cor <- cor(r6_items, use = "pairwise.complete.obs")
+r6_cor
+
+KMO(r6_cor)
+cortest.bartlett(r6_cor, n = nrow(r6_items))
+
+fa.parallel(
+  r6_items,
+  fa = "fa",
+  fm = "minres",
+  n.iter = 100,
+  plot = FALSE
+)
+
+r6_fa_one <- fa(
+  r6_items,
+  nfactors = 1,
+  rotate = "none",
+  fm = "minres"
+)
+
+r6_fa_one$loadings
+r6_fa_one$communality
+r6_fa_one$Vaccounted
+
+r6_fa_two <- fa(
+  r6_items,
+  nfactors = 2,
+  rotate = "oblimin",
+  fm = "minres"
+)
+
+r6_fa_two$loadings
+r6_fa_two$communality
+r6_fa_two$Vaccounted
+```
+
+The R6 items did not show the same clear one-factor structure as R3. The first two eigenvalues were approximately 1.58 and 1.03, suggesting that more than one dimension may be present. The item correlations were also uneven, especially for Q31 and Q33. This weakens the evidence for convergent validity of Q31 through Q34 as one single scale.
+
+The KMO value was approximately .50, which is borderline for factor analysis. Bartlett's test was statistically significant, but statistical significance alone does not establish that the items form a strong single construct. The factor loadings and eigenvalues should therefore be considered together with the reliability result.
+
+## R6 Reliability Analysis
+
+```{r}
+r6_alpha <- alpha(r6_items)
+r6_alpha
+
+r6_alpha$total
+r6_alpha$item.stats
+r6_alpha$alpha.drop
+```
+
+Cronbach's alpha for R6 was approximately .47, which is below a commonly used acceptable level for an internally consistent composite scale. This suggests that Q31 through Q34 do not work well together as one measure in this sample. The low alpha is consistent with the weak and uneven factor structure.
+
+## R6 Decision for a Composite Scale
+
+Given the low Cronbach's alpha, the borderline KMO value, and the evidence for more than one factor, Q31 through Q34 should not be combined into one R6 composite scale at this stage. The items should be analyzed separately or reconsidered after reviewing the questionnaire wording and the intended measurement model.
+
+# Discriminant Validity: R3 and R6 Together
+
+```{r}
+all_cor <- cor(all_items, use = "pairwise.complete.obs")
+all_cor
+
+all_fa <- fa(
+  all_items,
+  nfactors = 2,
+  rotate = "oblimin",
+  fm = "minres"
+)
+
+all_fa$loadings
+all_fa$communality
+all_fa$Vaccounted
+```
+
+The combined analysis provides a check of discriminant validity. The R3 items generally group together on one factor, while the R6 items are less consistent and do not form a clean second factor. This provides reasonably clear separation for R3 but weaker evidence that the four R6 items represent one distinct construct.
+
+# Overall Conclusion
+
+The results support creating a composite scale for R3. Q3 through Q6 show a dominant one-factor structure and good reliability, with Cronbach's alpha of approximately .87. The R3 composite can therefore be used in later analysis.
+
+The results do not support creating one composite scale for R6 using Q31 through Q34. The scale has low internal consistency, a borderline KMO value, uneven item correlations, and evidence of more than one factor. For the next step, the R6 items should remain separate unless the instructor provides a revised measurement decision.
+
+# Appendix: Submission Links
+
+- [GitHub Repository](https://github.com/jennyjeong53/IC-Case-31-Reliability-factor-analysis-for-R3-R6)
+- [GitHub Pages](https://jennyjeong53.github.io/IC-Case-31-Reliability-factor-analysis-for-R3-R6/)
